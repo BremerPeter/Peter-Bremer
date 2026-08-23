@@ -12,40 +12,42 @@ html,body{margin:0;height:100%;background:#05070a;color:#eefbff;font-family:ui-m
 </style>
 </head>
 <body>
-<div id="load"><b>ASCII PULSE PRO</b><br><small>Loading professional music-video engine…</small><div class="bar"><i></i></div></div>
+<div id="load"><b>ASCII PULSE PRO</b><br><small id="msg">Loading professional music-video engine…</small><div class="bar"><i></i></div></div>
 <script>window.__AP_CHUNKS=[];</script>
-<script src="ap-pro-0.js?v=pro-20260823c"></script>
-<script src="ap-pro-1.js?v=pro-20260823c"></script>
-<script src="ap-pro-2.js?v=pro-20260823c"></script>
-<script src="ap-pro-3.js?v=pro-20260823c"></script>
-<script src="ap-pro-4.js?v=pro-20260823c"></script>
+<script src="ap-pro-0.js?v=pro-20260823e"></script>
+<script src="ap-pro-1.js?v=pro-20260823e"></script>
+<script src="ap-pro-2.js?v=pro-20260823e"></script>
+<script src="ap-pro-3.js?v=pro-20260823e"></script>
+<script src="ap-pro-4.js?v=pro-20260823e"></script>
 <script>
 (async()=>{
- const box=document.getElementById('load');
- const fail=(msg)=>{box.innerHTML='<b>ASCII PULSE PRO</b><br><small>'+msg+'</small><br><button onclick="location.reload()">RELOAD</button>'};
+ const msg=document.getElementById('msg');
  try{
-  if(!Array.isArray(window.__AP_CHUNKS)) throw new Error('Bundle array missing.');
-  for(let i=0;i<5;i++){
-    if(typeof window.__AP_CHUNKS[i]!=='string'||window.__AP_CHUNKS[i].length<100){
-      throw new Error('Bundle part '+(i+1)+' did not load. Reload the page.');
-    }
-  }
-  let b64=window.__AP_CHUNKS.slice(0,5).join('');
-  b64=b64.replace(/\s+/g,'').replace(/[^A-Za-z0-9+/=]/g,'');
-  const rem=b64.length%4;
-  if(rem) b64+='='.repeat(4-rem);
-  let bin;
-  try{bin=atob(b64)}catch(e){throw new Error('Bundle decode failed. Please reload Safari.');}
-  const u=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
-  if(!('DecompressionStream' in window)) throw new Error('Please update iOS/Safari. This version needs a newer Safari engine.');
-  const ds=new DecompressionStream('gzip');
-  let ab;
-  try{ab=await new Response(new Blob([u]).stream().pipeThrough(ds)).arrayBuffer()}catch(e){throw new Error('Bundle decompression failed. Reload the page once.');}
-  const html=new TextDecoder().decode(ab);
-  if(!html||html.length<10000||!html.includes('ASCII PULSE')) throw new Error('App bundle is incomplete. Reload the page.');
-  document.open();document.write(html);document.close();
- }catch(e){console.error(e);fail(e.message||'Unknown loading error.');}
+   const parts=window.__AP_CHUNKS;
+   if(!Array.isArray(parts)||parts.length!==5||parts.some(x=>typeof x!=='string'||x.length<10)) throw new Error('App bundle did not load completely. Reload the page.');
+   msg.textContent='Decoding app…';
+   const decoded=[]; let total=0;
+   for(let p=0;p<parts.length;p++){
+     const clean=parts[p].replace(/\s+/g,'');
+     let bin;
+     try{ bin=atob(clean); }catch(err){ throw new Error('Bundle part '+(p+1)+' could not be decoded.'); }
+     const u=new Uint8Array(bin.length);
+     for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+     decoded.push(u); total+=u.length;
+   }
+   const packed=new Uint8Array(total); let off=0;
+   for(const u of decoded){packed.set(u,off);off+=u.length;}
+   if(!('DecompressionStream' in window)) throw new Error('This Safari version is too old. Update iOS/Safari and try again.');
+   msg.textContent='Starting music-video engine…';
+   const ds=new DecompressionStream('gzip');
+   const ab=await new Response(new Blob([packed]).stream().pipeThrough(ds)).arrayBuffer();
+   const html=new TextDecoder('utf-8').decode(ab);
+   if(!html.includes('<title>ASCII PULSE PRO</title>')&&!html.includes('ASCII PULSE')) throw new Error('Decoded app bundle is invalid.');
+   document.open();document.write(html);document.close();
+ }catch(e){
+   console.error(e);
+   document.getElementById('load').innerHTML='<b>ASCII PULSE PRO</b><br><small>'+String(e.message||e)+'</small><br><button onclick="location.reload()">RELOAD</button>';
+ }
 })();
 </script>
 </body>
