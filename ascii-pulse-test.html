@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#05070a" />
+<title>ASCII PULSE TEST</title>
+<style>
+:root{--bg:#05070a;--panel:#0b0f14;--line:#202833;--text:#f4f7fb;--muted:#8c96a6;--accent:#59d8ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent} html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+header{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:#05070aea}.brand{font-weight:900;letter-spacing:.08em}.brand span{color:var(--accent)}.track{font-size:12px;color:#bfefff;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.stage{position:relative;min-height:0;background:#000;overflow:hidden}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.badge{position:absolute;left:10px;top:10px;background:#0009;border:1px solid #ffffff18;padding:6px 8px;border-radius:999px;font-size:11px;color:#d3e8ee}
+.controls{background:var(--panel);border-top:1px solid var(--line);padding:10px;max-height:43vh;overflow:auto}.row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.row.three{grid-template-columns:repeat(3,1fr)}button,label.file{min-height:44px;border:1px solid var(--line);background:#111720;color:var(--text);border-radius:12px;padding:10px;font:inherit;font-weight:800;text-align:center}button.active,button.primary{border-color:var(--accent);color:#bff5ff}.file{display:block;margin-bottom:8px;border-style:dashed!important}.file input{display:none}.field{margin-top:8px;background:#080c11;border:1px solid var(--line);border-radius:12px;padding:9px}.field label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:7px;color:#dce5ef}input[type=range]{width:100%;accent-color:var(--accent)}.time{font-size:12px;text-align:center;color:#dbe4ed;margin-top:4px}.note{font-size:11px;color:var(--muted);line-height:1.4;margin-top:8px}.fullscreen{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;z-index:99999!important}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="brand">ASCII<span>PULSE</span></div><div id="track" class="track">iPhone live test</div><button id="full">⛶</button></header>
+<div id="stage" class="stage"><canvas id="c"></canvas><div id="badge" class="badge">VISUAL READY</div></div>
+<div class="controls">
+<label class="file">UPLOAD WAV / MP3<input id="file" type="file" accept="audio/*,.wav,.mp3,.m4a"></label>
+<div class="row"><button id="play" class="primary">▶</button><button id="restart">↺</button><button data-mode="ring" class="mode active">RING</button><button data-mode="triangle" class="mode">TRIANGLE</button></div>
+<div class="row three" style="margin-top:8px"><button data-mode="circle" class="mode">CIRCLE</button><button data-mode="wave" class="mode">WAVE</button><button data-mode="particles" class="mode">PARTICLES</button></div>
+<div class="field"><label><span>Music Reactivity</span><span id="rv">100%</span></label><input id="react" type="range" min="0" max="200" value="100"></div>
+<div class="field"><label><span>Motion</span><span id="mv">55</span></label><input id="motion" type="range" min="0" max="100" value="55"></div>
+<div class="field"><label><span>Feedback</span><span id="fv">18</span></label><input id="feedback" type="range" min="0" max="85" value="18"></div>
+<div class="field"><input id="seek" type="range" min="0" max="1000" value="0"><div id="time" class="time">00:00 / 00:00</div></div>
+<div id="bands" class="note">BASS 0.00 • MID 0.00 • HIGH 0.00<br>Visualet skal være synligt også før musikken spiller.</div>
+</div></div>
+<audio id="audio" playsinline preload="metadata"></audio>
+<script>
+(()=>{'use strict';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], clamp=(v,a,b)=>Math.min(b,Math.max(a,Number.isFinite(v)?v:a)), lerp=(a,b,t)=>a+(b-a)*t;
+const c=$('#c'),ctx=c.getContext('2d',{alpha:false}),stage=$('#stage'),audio=$('#audio');
+const state={mode:'ring',phase:0,last:performance.now(),bass:0,mid:0,high:0,ab:.06,am:.05,ah:.04,url:null}; let ac=null,src=null,an=null,freq=null;
+function resize(){const r=stage.getBoundingClientRect(),pr=Math.min(devicePixelRatio||1,2),w=Math.max(2,Math.floor(r.width*pr)),h=Math.max(2,Math.floor(r.height*pr));if(c.width!==w||c.height!==h){c.width=w;c.height=h}}; new ResizeObserver(resize).observe(stage);addEventListener('resize',resize,{passive:true});
+async function graph(){if(!ac){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('Web Audio unsupported');ac=new AC();src=ac.createMediaElementSource(audio);an=ac.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.78;freq=new Uint8Array(an.frequencyBinCount);src.connect(an);an.connect(ac.destination)}if(ac.state==='suspended')await ac.resume()}
+function band(lo,hi){if(!an||!freq||!ac)return 0;const ny=ac.sampleRate/2,a=Math.floor(lo/ny*freq.length),b=Math.ceil(hi/ny*freq.length);let s=0,n=0;for(let i=Math.max(0,a);i<=Math.min(freq.length-1,b);i++){const x=freq[i]/255;s+=x*x;n++}return n?Math.sqrt(s/n):0}
+function updateAudio(){if(!an||audio.paused){state.bass=lerp(state.bass,0,.06);state.mid=lerp(state.mid,0,.06);state.high=lerp(state.high,0,.06);return}an.getByteFrequencyData(freq);const b=band(45,220),m=band(220,2400),h=band(2400,12000);state.ab=lerp(state.ab,Math.max(.02,b),.012);state.am=lerp(state.am,Math.max(.02,m),.012);state.ah=lerp(state.ah,Math.max(.02,h),.012);const norm=(x,av)=>clamp(x/(av*2.1)-.1,0,1);state.bass=lerp(state.bass,norm(b,state.ab),.22);state.mid=lerp(state.mid,norm(m,state.am),.18);state.high=lerp(state.high,norm(h,state.ah),.16);$('#bands').innerHTML=`BASS ${state.bass.toFixed(2)} • MID ${state.mid.toFixed(2)} • HIGH ${state.high.toFixed(2)}<br>Hvis tallene bevæger sig, virker audioanalysen.`}
+function ring(cx,cy,s){ctx.beginPath();ctx.arc(cx,cy,s,0,Math.PI*2);ctx.lineWidth=Math.max(3,s*.055);ctx.stroke();ctx.beginPath();ctx.arc(cx,cy,s*.58,0,Math.PI*2);ctx.lineWidth=Math.max(1,s*.013);ctx.stroke()}
+function tri(cx,cy,s,r){ctx.save();ctx.translate(cx,cy);ctx.rotate(r);ctx.beginPath();for(let i=0;i<3;i++){const a=-Math.PI/2+i*Math.PI*2/3,x=Math.cos(a)*s,y=Math.sin(a)*s;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.closePath();ctx.lineWidth=Math.max(3,s*.05);ctx.stroke();ctx.restore()}
+function circle(cx,cy,s){ctx.beginPath();ctx.arc(cx,cy,s,0,Math.PI*2);ctx.fill()}
+function wave(w,h,a,p){ctx.beginPath();for(let x=0;x<=w;x+=Math.max(2,w/170)){const y=h/2+Math.sin(x/w*Math.PI*4+p)*a+Math.sin(x/w*Math.PI*10-p*.4)*a*.2;x?ctx.lineTo(x,y):ctx.moveTo(x,y)}ctx.lineWidth=Math.max(2,w/240);ctx.stroke()}
+function particles(cx,cy,s,p,e){for(let i=0;i<85;i++){const a=i*2.399963+p*.1,r=s*Math.sqrt((i+.5)/85)*(1+e*.25*Math.sin(i*.6+p)),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;ctx.beginPath();ctx.arc(x,y,1.5+(i%9===0?2:0)+e*1.8,0,Math.PI*2);ctx.fill()}}
+function frame(t){resize();const dt=Math.min(.05,(t-state.last)/1000||.016);state.last=t;updateAudio();const w=c.width,h=c.height,min=Math.min(w,h),cx=w/2,cy=h/2,react=Number($('#react').value)/100,motion=Number($('#motion').value)/100,fb=Number($('#feedback').value)/100,b=state.bass*react,m=state.mid*react,hi=state.high*react;state.phase+=dt*(.45+motion*1.6+m*1.2);ctx.globalCompositeOperation='source-over';ctx.fillStyle='#000';ctx.globalAlpha=clamp(1-fb,.12,1);ctx.fillRect(0,0,w,h);ctx.globalAlpha=1;ctx.strokeStyle=`rgba(${90+hi*70},${215+hi*30},255,.98)`;ctx.fillStyle=`rgba(${90+hi*70},${215+hi*30},255,.86)`;ctx.shadowBlur=18+b*26;ctx.shadowColor='#59d8ff';const s=min*.20*(1+b*.38+Math.sin(state.phase*.9)*.025),rot=state.phase*.22+m*.6;switch(state.mode){case'circle':circle(cx,cy,s*.82);break;case'triangle':tri(cx,cy,s,rot);break;case'wave':wave(w,h,min*(.055+b*.12),state.phase*1.6);break;case'particles':particles(cx,cy,min*.30,state.phase,b+hi*.3);break;default:ring(cx,cy,s)}$('#rv').textContent=$('#react').value+'%';$('#mv').textContent=$('#motion').value;$('#fv').textContent=$('#feedback').value;requestAnimationFrame(frame)}requestAnimationFrame(frame);
+function fmt(s){s=Number.isFinite(s)?s:0;return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0')}
+function clock(){const d=audio.duration||0,cur=audio.currentTime||0;$('#time').textContent=`${fmt(cur)} / ${fmt(d)}`;if(d)$('#seek').value=Math.round(cur/d*1000);requestAnimationFrame(clock)}requestAnimationFrame(clock);
+$('#file').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;if(state.url)URL.revokeObjectURL(state.url);state.url=URL.createObjectURL(f);audio.src=state.url;audio.load();$('#track').textContent=f.name;$('#badge').textContent='AUDIO LOADED';});
+async function toggle(){try{if(!audio.src){$('#file').click();return}await graph();if(audio.paused)await audio.play();else audio.pause()}catch(e){console.error(e);alert('Audio could not start. Choose the file again and tap Play.')}}
+$('#play').addEventListener('click',toggle);audio.addEventListener('play',()=>{$('#play').textContent='❚❚';$('#badge').textContent='AUDIO REACTIVE'});audio.addEventListener('pause',()=>{$('#play').textContent='▶';$('#badge').textContent='PAUSED • VISUAL STILL ACTIVE'});$('#restart').addEventListener('click',()=>audio.currentTime=0);$('#seek').addEventListener('input',()=>{if(audio.duration)audio.currentTime=Number($('#seek').value)/1000*audio.duration});
+$$('.mode').forEach(b=>b.addEventListener('click',()=>{$$('.mode').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.mode=b.dataset.mode}));
+$('#full').addEventListener('click',async()=>{stage.classList.toggle('fullscreen');if(stage.classList.contains('fullscreen')){try{if(stage.requestFullscreen)await stage.requestFullscreen()}catch(e){} } else if(document.fullscreenElement){try{await document.exitFullscreen()}catch(e){}}resize()});
+resize();})();
+</script></body></html>
