@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#05070a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ASCII PULSE PRO</title>
+<style>
+html,body{margin:0;height:100%;background:#05070a;color:#eefbff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;display:grid;place-items:center}#load{text-align:center;padding:24px;line-height:1.6}b{color:#bff5ff;letter-spacing:.08em}small{color:#82929f}.bar{width:220px;max-width:70vw;height:5px;background:#13202a;border-radius:99px;margin:16px auto;overflow:hidden}.bar i{display:block;height:100%;width:30%;background:#59d8ff;animation:a 1s infinite alternate ease-in-out}@keyframes a{to{width:100%}}button{margin-top:16px;min-height:44px;padding:10px 16px;border-radius:12px;border:1px solid #59d8ff;background:#102630;color:#bff5ff;font:inherit;font-weight:800}
+</style>
+</head>
+<body>
+<div id="load"><b>ASCII PULSE PRO</b><br><small id="msg">Loading professional music-video engine…</small><div class="bar"><i></i></div></div>
+<script>window.__AP_CHUNKS=[];</script>
+<script src="ap-pro-0.js?v=20260823-pro2"></script>
+<script src="ap-pro-1.js?v=20260823-pro2"></script>
+<script src="ap-pro-2.js?v=20260823-pro2"></script>
+<script src="ap-pro-3.js?v=20260823-pro2"></script>
+<script src="ap-pro-4.js?v=20260823-pro2"></script>
+<script>
+(async()=>{
+ const msg=document.getElementById('msg');
+ const fail=(text)=>{document.getElementById('load').innerHTML='<b>ASCII PULSE PRO</b><br><small>'+text+'</small><br><button onclick="location.reload()">RELOAD</button>';};
+ try{
+  if(!Array.isArray(window.__AP_CHUNKS)||window.__AP_CHUNKS.length<5) throw new Error('One or more app files did not load. Reload the page.');
+  for(let i=0;i<5;i++) if(typeof window.__AP_CHUNKS[i]!=='string'||window.__AP_CHUNKS[i].length<100) throw new Error('App file '+(i+1)+' did not load correctly.');
+  msg.textContent='Verifying app bundle…';
+  let b64=window.__AP_CHUNKS.slice(0,5).join('').replace(/\s+/g,'');
+  if(!/^[A-Za-z0-9+/=]+$/.test(b64)) throw new Error('Bundle contains unexpected data.');
+  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean=b64.replace(/=+$/,'');
+  const out=[];
+  let buffer=0,bits=0;
+  for(let i=0;i<clean.length;i++){
+    const val=alphabet.indexOf(clean[i]);
+    if(val<0) continue;
+    buffer=(buffer<<6)|val; bits+=6;
+    if(bits>=8){bits-=8;out.push((buffer>>bits)&255);buffer&=(1<<bits)-1;}
+  }
+  const bytes=new Uint8Array(out);
+  if(bytes[0]!==31||bytes[1]!==139) throw new Error('Bundle verification failed.');
+  if(!('DecompressionStream' in window)) throw new Error('Your Safari version cannot unpack the app. Please update iOS/Safari.');
+  msg.textContent='Starting ASCII PULSE PRO…';
+  const ds=new DecompressionStream('gzip');
+  const ab=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  const html=new TextDecoder().decode(ab);
+  if(!html.includes('ASCII PULSE')) throw new Error('App content could not be verified.');
+  document.open(); document.write(html); document.close();
+ }catch(e){console.error(e);fail(e&&e.message?e.message:String(e));}
+})();
+</script>
+</body>
+</html>
